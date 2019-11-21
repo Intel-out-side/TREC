@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:uno",
+    "port": "COM28",
+    "programmer": "AVR ISP",
+    "sketch": "netFT_to_arduino.ino"
+}
