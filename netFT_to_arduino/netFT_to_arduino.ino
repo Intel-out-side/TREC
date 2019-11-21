@@ -4,15 +4,27 @@
    @version : 2019-11-20
 */
 
+/* ToDo
+   1. need some calibration
+   2. need to accept the data from two boards
+   scaling factor can be found on the page B-83
+*/
+
 #include <SPI.h>
 #include "mcp_can.h"
-
+#include "util.h"
 
 // the cs pin of the version after v1.1 is default to D9
 // v0.9b and v1.0 is default D10
 const int SPI_CS_PIN = 9;
+const int BORAD1_BASE = 0x1B0; // base adress of board 1
+//const int BOARD2_BASE = 1111111; // base address of board 2
 
 MCP_CAN CAN(SPI_CS_PIN);                                    // Set CS pin
+
+unsigned char len = 0;
+unsigned char buf[8];
+unsigned int canId;
 
 void setup()
 {
@@ -25,6 +37,8 @@ void setup()
     delay(100);
   }
   Serial.println("CAN BUS Shield init ok!");
+  
+  CAN.sendMsgBuf(BORAD1_BASE, 0, 1, 0x04); // zeros force and torque at the current value
 }
 
 /* To communicate with Net F/T board to get a sensor data from mini45
@@ -40,72 +54,114 @@ void setup()
 void loop()
 {
   unsigned char messageRequest[1] = {1};
-  unsigned char lenX = 0, lenY = 0, lenZ = 0, lenStatus = 0;
-  unsigned char bufX[8], bufY[8], bufZ[8], bufStatus[8];
   unsigned int canIdX, canIdY, canIdZ, canIdStatus;
+  long fx, fy, fz, tx, ty, tz;
 
-  CAN.sendMsgBuf(0x1B0, 0, 1, messageRequest); // send a message request in a long format
-  //while(CAN_MSGAVAIL != CAN.checkReceive()) ; // wait til the data comes back
+  CAN.sendMsgBuf(BORAD1_BASE, 0, 1, messageRequest); // send a message request in a long format
 
+  storeFT(fx, fy, fz, tx, ty, tz);
+  storeFT(fx, fy, fz, tx, ty, tz);
+  storeFT(fx, fy, fz, tx, ty, tz);
+  storeFT(fx, fy, fz, tx, ty, tz);
+
+  Serial.println("----------------");
+}
+
+/* assign the force torque vaues depending on the
+   can ID. Make sure that the base address is 432 (HEX:1B0)
+   base address +1 : x axis
+   base address +2 : y axis
+   base address +3 : z axis
+   @param fx, fy, fz, tx, ty, tz : the force and torque variables to store the data
+*/
+void storeFT(long& fx, long& fy, long& fz, long& tx, long& ty, long& tz) {
   while(CAN_MSGAVAIL != CAN.checkReceive());
-  CAN.readMsgBuf(&lenX, bufX);
-  canIdX = CAN.getCanId();
+  CAN.readMsgBuf(&len, buf);
+  canId = CAN.getCanId();
 
-  while(CAN_MSGAVAIL != CAN.checkReceive());
-  CAN.readMsgBuf(&lenY, bufY);
-  canIdY = CAN.getCanId();
+  if (canId == BORAD1_BASE + 1) {
+    fx = convertToForce(buf);
+    tx = convertToTorque(buf);
+    Serial.print("from: "); Serial.println(canId);
+    Serial.print("fx: "); Serial.println(fx);
+    Serial.print("tx: "); Serial.println(tx);
+  }
+  else if (canId == BORAD1_BASE + 2) {
+    fy = convertToForce(buf);
+    ty = convertToTorque(buf);
+    Serial.print("from: "); Serial.println(canId);
+    Serial.print("fy: "); Serial.println(fy);
+    Serial.print("ty: "); Serial.println(ty);
+  }
+  else if (canId == BORAD1_BASE + 3) {
+    fz = convertToForce(buf);
+    tz = convertToTorque(buf);
+    Serial.print("from: "); Serial.println(canId);
+    Serial.print("fz: "); Serial.println(fz);
+    Serial.print("tz: "); Serial.println(tz);
+  }
+  else {
+    Serial.println("StatusMessage received");
+  }
   
-  while(CAN_MSGAVAIL != CAN.checkReceive());
-  CAN.readMsgBuf(&lenZ, bufZ);
-  canIdZ = CAN.getCanId();
+}
 
-  while(CAN_MSGAVAIL != CAN.checkReceive());
-  CAN.readMsgBuf(&lenStatus, bufStatus);
-  canIdStatus = CAN.getCanId();
+/*
+  this function converts the raw string data to
+  long integer force value.
+  4th ~ 8th byte of parameter represent the force value
 
-  Serial.println("--------------------------");
-
-  Serial.print("Data form ID: ");
-  Serial.println(canIdX, HEX);
-
-  Serial.print("X datas: ");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(bufX[i], HEX);
+  @param buf[8] : buffer data that contains raw data coming back from NetF/T
+  @return : long integer value of force
+*/
+long convertToForce(unsigned char buf[8]) {
+  String resultStr = "";
+  for (int i = 7; i >= 4; i--) {
+    if (buf[i] <= 15) resultStr += "0" + String(buf[i], HEX);
+    else resultStr += String(buf[i], HEX);
   }
-  Serial.println();
+  resultStr = hexToBin(resultStr);
+  return binToDec(resultStr);
+}
 
-  /*-------------------------------*/
+/*
+  this function converts the raw string data to
+  integer torque value.
 
-  Serial.print("Data form ID: ");
-  Serial.println(canIdY, HEX);
-
-  Serial.print("Y datas: ");
-  for (int i = 0; i < 8; i++ ) {
-    Serial.print(bufY[i], HEX);
+  @param buf[8] : buffer data that contains raw data coming back from NetF/T
+  @return : integer value of torque
+*/
+long convertToTorque(unsigned char buf[8]) {
+  String resultStr = "";
+  for (int i = 3; i >= 0; i--) {
+    if (buf[i] <= 15) resultStr += "0" + String(buf[i], HEX);
+    else resultStr += String(buf[i], HEX);
   }
-  Serial.println();
+  resultStr = hexToBin(resultStr);
+  return binToDec(resultStr);
+}
 
-  /*-------------------------------*/
+//------------------------test functions below-----------------------
+/*  test method for convertToForce
+    @postcondition : result should match -35991793 for given data
+*/
+void testConvertToForce() {
+  unsigned char buf[8] = {0x00, 0x00, 0x00, 0x00, 0x0f, 0xcf, 0xda, 0xfd};
 
-  Serial.print("Data form ID: ");
-  Serial.println(canIdZ, HEX);
+  long result = convertToForce(buf);
 
-  Serial.print("Z datas: ");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(bufZ[i], HEX);
-  }
-  Serial.println();
+  if (result == -35991793) Serial.println("test passed");
+}
 
-  /*------------------------------*/
+/* test method for convertToTorque
+   @postcondition : result shold match -35991793 for given data
+*/
+void testConvertToTorque() {
+  unsigned char buf[8] = {0x0f, 0xcf, 0xda, 0xfd, 0x00, 0x00, 0x00, 0x00};
 
-  Serial.print("Data form ID: ");
-  Serial.println(canIdStatus, HEX);
+  long result = convertToTorque(buf);
 
-  Serial.print("Status datas: ");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(bufStatus[i], HEX);
-  }
-  Serial.println();
+  if (result == -35991793) Serial.println("test passed");
 }
 
 /*********************************************************************************************************
