@@ -5,9 +5,8 @@
 */
 
 /* ToDo
-   1. need some calibration
+   1. connect to the ethernet to transfer the data
    2. need to accept the data from two boards
-   scaling factor can be found on the page B-83
 */
 
 #include <SPI.h>
@@ -19,6 +18,8 @@
 const int SPI_CS_PIN = 9;
 const int BORAD1_BASE = 0x1B0; // base adress of board 1
 //const int BOARD2_BASE = 1111111; // base address of board 2
+const double FORCE_FACTOR = 35402.0;
+const double TORQUE_FACTOR = 611.0;
 
 MCP_CAN CAN(SPI_CS_PIN);                                    // Set CS pin
 
@@ -38,7 +39,8 @@ void setup()
   }
   Serial.println("CAN BUS Shield init ok!");
   
-  CAN.sendMsgBuf(BORAD1_BASE, 0, 1, 0x04); // zeros force and torque at the current value
+  unsigned char reset[1] = {0x04};
+  CAN.sendMsgBuf(BORAD1_BASE, 0, 1, reset); // zeros force and torque at the current value
 }
 
 /* To communicate with Net F/T board to get a sensor data from mini45
@@ -54,8 +56,7 @@ void setup()
 void loop()
 {
   unsigned char messageRequest[1] = {1};
-  unsigned int canIdX, canIdY, canIdZ, canIdStatus;
-  long fx, fy, fz, tx, ty, tz;
+  double fx, fy, fz, tx, ty, tz;
 
   CAN.sendMsgBuf(BORAD1_BASE, 0, 1, messageRequest); // send a message request in a long format
 
@@ -65,6 +66,7 @@ void loop()
   storeFT(fx, fy, fz, tx, ty, tz);
 
   Serial.println("----------------");
+  delay(1000);
 }
 
 /* assign the force torque vaues depending on the
@@ -74,7 +76,7 @@ void loop()
    base address +3 : z axis
    @param fx, fy, fz, tx, ty, tz : the force and torque variables to store the data
 */
-void storeFT(long& fx, long& fy, long& fz, long& tx, long& ty, long& tz) {
+void storeFT(double& fx, double& fy, double& fz, double& tx, double& ty, double& tz) {
   while(CAN_MSGAVAIL != CAN.checkReceive());
   CAN.readMsgBuf(&len, buf);
   canId = CAN.getCanId();
@@ -102,8 +104,7 @@ void storeFT(long& fx, long& fy, long& fz, long& tx, long& ty, long& tz) {
   }
   else {
     Serial.println("StatusMessage received");
-  }
-  
+  }  
 }
 
 /*
@@ -114,14 +115,16 @@ void storeFT(long& fx, long& fy, long& fz, long& tx, long& ty, long& tz) {
   @param buf[8] : buffer data that contains raw data coming back from NetF/T
   @return : long integer value of force
 */
-long convertToForce(unsigned char buf[8]) {
+double convertToForce(unsigned char buf[8]) {
   String resultStr = "";
-  for (int i = 7; i >= 4; i--) {
+  double force;
+  for (int i = 3; i >= 0; i--) {
     if (buf[i] <= 15) resultStr += "0" + String(buf[i], HEX);
     else resultStr += String(buf[i], HEX);
   }
   resultStr = hexToBin(resultStr);
-  return binToDec(resultStr);
+  force = binToDec(resultStr)/FORCE_FACTOR;
+  return force;
 }
 
 /*
@@ -131,14 +134,16 @@ long convertToForce(unsigned char buf[8]) {
   @param buf[8] : buffer data that contains raw data coming back from NetF/T
   @return : integer value of torque
 */
-long convertToTorque(unsigned char buf[8]) {
+double convertToTorque(unsigned char buf[8]) {
   String resultStr = "";
-  for (int i = 3; i >= 0; i--) {
+  double torque;
+  for (int i = 7; i >= 4; i--) {
     if (buf[i] <= 15) resultStr += "0" + String(buf[i], HEX);
     else resultStr += String(buf[i], HEX);
   }
   resultStr = hexToBin(resultStr);
-  return binToDec(resultStr);
+  torque = binToDec(resultStr)/TORQUE_FACTOR;
+  return torque;
 }
 
 //------------------------test functions below-----------------------
@@ -146,9 +151,9 @@ long convertToTorque(unsigned char buf[8]) {
     @postcondition : result should match -35991793 for given data
 */
 void testConvertToForce() {
-  unsigned char buf[8] = {0x00, 0x00, 0x00, 0x00, 0x0f, 0xcf, 0xda, 0xfd};
+  unsigned char buf[8] = {0x0f, 0xcf, 0xda, 0xfd, 0x00, 0x00, 0x00, 0x00};
 
-  long result = convertToForce(buf);
+  double result = convertToForce(buf);
 
   if (result == -35991793) Serial.println("test passed");
 }
@@ -157,9 +162,9 @@ void testConvertToForce() {
    @postcondition : result shold match -35991793 for given data
 */
 void testConvertToTorque() {
-  unsigned char buf[8] = {0x0f, 0xcf, 0xda, 0xfd, 0x00, 0x00, 0x00, 0x00};
+  unsigned char buf[8] = {0x00, 0x00, 0x00, 0x00, 0x0f, 0xcf, 0xda, 0xfd};
 
-  long result = convertToTorque(buf);
+  double result = convertToTorque(buf);
 
   if (result == -35991793) Serial.println("test passed");
 }
