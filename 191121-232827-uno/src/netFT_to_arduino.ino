@@ -5,13 +5,16 @@
 */
 
 /* ToDo
-   1. connect to the ethernet to transfer the data
+   1. connect to the ethernet to transfer the data...?
+      (probably need more specs about it)
    2. need to accept the data from two boards
+   3. verify the calibration of sensors.
 */
 
 #include <SPI.h>
 #include "mcp_can.h"
 #include "util.h"
+#include <MsTimer2.h>
 
 // the cs pin of the version after v1.1 is default to D9
 // v0.9b and v1.0 is default D10
@@ -20,6 +23,7 @@ const int BORAD1_BASE = 0x1B0; // base adress of board 1
 //const int BOARD2_BASE = 1111111; // base address of board 2
 const double FORCE_FACTOR = 35402.0;
 const double TORQUE_FACTOR = 611.0;
+unsigned long time;
 
 MCP_CAN CAN(SPI_CS_PIN);                                    // Set CS pin
 
@@ -38,9 +42,11 @@ void setup()
     delay(100);
   }
   Serial.println("CAN BUS Shield init ok!");
-  
+
   unsigned char reset[1] = {0x04};
   CAN.sendMsgBuf(BORAD1_BASE, 0, 1, reset); // zeros force and torque at the current value
+  MsTimer2::set(20, mainFunction);
+  MsTimer2::start();
 }
 
 /* To communicate with Net F/T board to get a sensor data from mini45
@@ -55,9 +61,15 @@ void setup()
 
 void loop()
 {
+  //leave the loop() function blank
+}
+
+/*
+  the main function to execute by a timer function
+*/
+void mainFunction() {
   unsigned char messageRequest[1] = {1};
   double fx, fy, fz, tx, ty, tz;
-
   CAN.sendMsgBuf(BORAD1_BASE, 0, 1, messageRequest); // send a message request in a long format
 
   storeFT(fx, fy, fz, tx, ty, tz);
@@ -65,8 +77,15 @@ void loop()
   storeFT(fx, fy, fz, tx, ty, tz);
   storeFT(fx, fy, fz, tx, ty, tz);
 
-  Serial.println("----------------");
-  delay(1000);
+  Serial.print(fx); Serial.print(",");
+  Serial.print(fy); Serial.print(",");
+  Serial.print(fz); Serial.print(",");
+  Serial.print(tx); Serial.print(",");
+  Serial.print(ty); Serial.print(",");
+  Serial.println(tz);
+
+
+  //Serial.println(time++); // check if the function executed til the end
 }
 
 /* assign the force torque vaues depending on the
@@ -84,36 +103,24 @@ void storeFT(double& fx, double& fy, double& fz, double& tx, double& ty, double&
   if (canId == BORAD1_BASE + 1) {
     fx = convertToForce(buf);
     tx = convertToTorque(buf);
-    Serial.print("from: "); Serial.println(canId);
-    Serial.print("fx: "); Serial.println(fx);
-    Serial.print("tx: "); Serial.println(tx);
   }
   else if (canId == BORAD1_BASE + 2) {
     fy = convertToForce(buf);
     ty = convertToTorque(buf);
-    Serial.print("from: "); Serial.println(canId);
-    Serial.print("fy: "); Serial.println(fy);
-    Serial.print("ty: "); Serial.println(ty);
   }
   else if (canId == BORAD1_BASE + 3) {
     fz = convertToForce(buf);
     tz = convertToTorque(buf);
-    Serial.print("from: "); Serial.println(canId);
-    Serial.print("fz: "); Serial.println(fz);
-    Serial.print("tz: "); Serial.println(tz);
   }
-  else {
-    Serial.println("StatusMessage received");
-  }  
 }
 
 /*
   this function converts the raw string data to
-  long integer force value.
+  double floating number force value.
   4th ~ 8th byte of parameter represent the force value
 
   @param buf[8] : buffer data that contains raw data coming back from NetF/T
-  @return : long integer value of force
+  @return : double value of force[N]
 */
 double convertToForce(unsigned char buf[8]) {
   String resultStr = "";
@@ -129,10 +136,10 @@ double convertToForce(unsigned char buf[8]) {
 
 /*
   this function converts the raw string data to
-  integer torque value.
+  double torque value.
 
   @param buf[8] : buffer data that contains raw data coming back from NetF/T
-  @return : integer value of torque
+  @return : double value of torque[Nm]
 */
 double convertToTorque(unsigned char buf[8]) {
   String resultStr = "";
