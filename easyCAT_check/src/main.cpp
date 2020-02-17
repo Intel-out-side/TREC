@@ -20,7 +20,7 @@
 
 //---- AB&T EasyCAT shield application example V.2_0 -------------------------------------------
 #include <Arduino.h>
-#define CUSTOM
+#define CUSTOM 2
 #include "profile.h"
 #include "EasyCAT.h"                // EasyCAT library to interface the LAN9252
 #include <SPI.h>                    // SPI library
@@ -70,7 +70,7 @@ unsigned long PreviousMillis = 0;
 unsigned long PreviousSaw = 0;
 unsigned long PreviousCycle = 0;
 
-void Application();
+void Application();  // proto-type declaration of the user application
 
 
 //---- setup ---------------------------------------------------------------------------------------
@@ -146,16 +146,19 @@ void loop()                                             // In the main loop we m
 //---- user application ------------------------------------------------------------------------------
 
 void Application() {
-  Millis = millis();
-  uint16_t masterToSlave = EASYCAT.BufferOut.Cust.output1;
-  Serial.println(masterToSlave);
-  EASYCAT.BufferIn.Cust.input1 = (uint16_t) Millis;
+  uint8_t output1 = EASYCAT.BufferOut.Cust.output1;
+  Serial.print("Master -> Slave : "); Serial.println(output1);
+  uint8_t input1 = 180;
+  EASYCAT.BufferIn.Cust.input1 = input1;
+  Serial.print("Slave -> Master "); Serial.println(input1);
+
+  //多分これでスレーブ側のコンフィグは完了したはず
+  //SOEM側がどうconfigされるべきなのかは全くわからない
+  //SOEMでslaveinfoを見ると変数も見れるのでひょっとするともうconfiguすら必要ない説？
 }
 
 /*
-void Application()
-
-{
+void Application() {
   UWORD Analog0;
   UWORD Analog1;
 
@@ -173,7 +176,7 @@ void Application()
 
     Analog1.Word = analogRead(Ana1);                    // read analog input 1
     Analog1.Word >>= 2;                                 // normalize it on 8 bits
-    EASYCAT.BufferIn.Byte[1] = Analog1.Byte[0];         // and put the result into
+    EASYCAT.BufferIn.Byte[1] = Analog1.Byte[0];        // and put the result into
                                                         // input Byte 1
 
                                                         // --- four output bits management ----
