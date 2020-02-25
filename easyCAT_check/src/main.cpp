@@ -20,12 +20,12 @@
 
 //---- AB&T EasyCAT shield application example V.2_0 -------------------------------------------
 #include <Arduino.h>
-#define CUSTOM 2
+#define CUSTOM                   //macro should define how many bytes are used?
 #include "profile.h"
 #include "EasyCAT.h"                // EasyCAT library to interface the LAN9252
 #include <SPI.h>                    // SPI library
 
-EasyCAT EASYCAT;                    // EasyCAT istantiation
+//EasyCAT EASYCAT;                    // EasyCAT istantiation
 
                                     // The constructor allow us to choose the pin used for the EasyCAT SPI chip select
                                     // Without any parameter pin 9 will be used
@@ -37,7 +37,7 @@ EasyCAT EASYCAT;                    // EasyCAT istantiation
 
                                     // (The EasyCAT board REV_A allows only pins 8, 9, 10 through 0 ohm resistors)
 
- //EasyCAT EASYCAT(8);              // example:
+EasyCAT EASYCAT(8);              // example:
                                     // pin 8 will be used as SPI chip select
                                     // The chip select chosen by the firmware must match the setting on the board
 
@@ -58,7 +58,6 @@ const int BitIn2 = 6;               // digital input  bit 2
 const int BitIn3 = 7;               // digital input  bit 3
 
 
-
 //---- global variables ---------------------------------------------------------------------------
 
 
@@ -69,6 +68,8 @@ unsigned long Millis = 0;
 unsigned long PreviousMillis = 0;
 unsigned long PreviousSaw = 0;
 unsigned long PreviousCycle = 0;
+
+uint8_t test = 0;
 
 void Application();  // proto-type declaration of the user application
 
@@ -87,14 +88,22 @@ void setup()
   pinMode(BitOut2, OUTPUT);                                       //
   pinMode(BitOut3, OUTPUT);                                       //
 
+  //pinMode(CatShield, OUTPUT);
+  //pinMode(CanShield, OUTPUT);
+
   pinMode(BitIn0, INPUT_PULLUP);                                  // digital input pins setting
   pinMode(BitIn1, INPUT_PULLUP);                                  //
   pinMode(BitIn2, INPUT_PULLUP);                                  //
   pinMode(BitIn3, INPUT_PULLUP);                                  //
 
+  //digitalWrite(CanShield, HIGH);
+  //digitalWrite(CatShield, LOW);
+
   ContaUp.Word = 0x0000;                                          //
   ContaDown.Word = 0x0000;                                        //
 
+
+  //while (EASYCAT.Init() != true) Serial.println("Initializing..");
                                                                   //---- initialize the EasyCAT board -----
 
   if (EASYCAT.Init() == true)                                     // initialization
@@ -104,7 +113,8 @@ void setup()
 
   else                                                            // initialization failed
   {                                                               // the EasyCAT board was not recognized
-    Serial.print ("initialization failed");                       //
+    Serial.print ("initialization failed");
+
                                                                   // The most common reason is that the SPI
                                                                   // chip select choosen on the board doesn't
                                                                   // match the one choosen by the firmware
@@ -120,7 +130,7 @@ void setup()
     }                                                             //
   }
 
-  PreviousMillis = millis();
+  //PreviousMillis = millis();
 }
 
 
@@ -148,8 +158,8 @@ void loop()                                             // In the main loop we m
 void Application() {
   uint8_t output1 = EASYCAT.BufferOut.Cust.output1;
   Serial.print("Master -> Slave : "); Serial.println(output1);
-  uint8_t input1 = 180;
-  EASYCAT.BufferIn.Cust.input1 = input1;
+  static uint8_t input1 = 0;
+  EASYCAT.BufferIn.Cust.input1 = input1++;
   Serial.print("Slave -> Master "); Serial.println(input1);
 
   //多分これでスレーブ側のコンフィグは完了したはず
