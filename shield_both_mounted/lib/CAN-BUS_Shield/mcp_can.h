@@ -121,7 +121,6 @@ public:
     void enableTxInterrupt(bool enable=true);    // enable transmit interrupt
     void reserveTxBuffers(byte nTxBuf=0) { nReservedTx=(nTxBuf<MCP_N_TXBUFFERS?nTxBuf:MCP_N_TXBUFFERS-1); }
     byte getLastTxBuffer() { return MCP_N_TXBUFFERS-1; } // read index of last tx buffer
-
     byte begin(byte speedset, const byte clockset = MCP_16MHz);     // init can
     byte init_Mask(byte num, byte ext, unsigned long ulData);       // init Masks
     byte init_Filt(byte num, byte ext, unsigned long ulData);       // init filters
