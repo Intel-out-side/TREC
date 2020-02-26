@@ -219,26 +219,31 @@ This function sends force/torque data from Arduino to EtherCAT Master.
 @param fz : torque about z-axis
 */
 void sendToMaster(double fx, double fy, double fz, double tx, double ty, double tz) {
-  uint8_t a = 100, b = 200, c = 254, d = 255, e = 255, f = 255;
 
   // EASYCAT.BufferOut.Cust struct contains the data FROM MASTER TO SLAVE
   // read each values and store into fx~tz
   // e.g.) fx_m2s represents "fx master to slave"
-  uint8_t ref_fx = EASYCAT.BufferOut.Cust.fx_m2s; // reference value of fx, sent from master to slave
-  uint8_t ref_fy = EASYCAT.BufferOut.Cust.fy_m2s; // reference value of fy
-  uint8_t ref_fz = EASYCAT.BufferOut.Cust.fz_m2s; // reference value of fz
-  uint8_t ref_tx = EASYCAT.BufferOut.Cust.tx_m2s; // reference value
-  uint8_t ref_ty = EASYCAT.BufferOut.Cust.ty_m2s;
-  uint8_t ref_tz = EASYCAT.BufferOut.Cust.tz_m2s;
+  int8_t ref_fx = EASYCAT.BufferOut.Cust.fx_m2s; // reference value of fx, sent from master to slave
+  int8_t ref_fy = EASYCAT.BufferOut.Cust.fy_m2s; // reference value of fy
+  int8_t ref_fz = EASYCAT.BufferOut.Cust.fz_m2s; // reference value of fz
+  int8_t ref_tx = EASYCAT.BufferOut.Cust.tx_m2s; // reference value
+  int8_t ref_ty = EASYCAT.BufferOut.Cust.ty_m2s;
+  int8_t ref_tz = EASYCAT.BufferOut.Cust.tz_m2s;
 
 
   // EASYCAT.BufferIn.Cust struct contains the data FROM SLAVE TO MASTER
   // store each force/torque values measured by sensor into struct member variables
   // e.g.) fx_s2m represents "fx slave to master". This will be read by EasyCAT in every iteration
-  EASYCAT.BufferIn.Cust.fx_s2m = (uint8_t) a;
-  EASYCAT.BufferIn.Cust.fy_s2m = (uint8_t) b;
-  EASYCAT.BufferIn.Cust.fz_s2m = (uint8_t) c;
-  EASYCAT.BufferIn.Cust.tx_s2m = (uint8_t) d;
-  EASYCAT.BufferIn.Cust.ty_s2m = (uint8_t) e;
-  EASYCAT.BufferIn.Cust.tz_s2m = (uint8_t) f;
+  fx = fx > 255 ? 255 : fx;
+  fy = fy > 255 ? 255 : fy;
+  fz = fz > 255 ? 255 : fz;
+  tx = tx > 255 ? 255 : tx;
+  ty = ty > 255 ? 255 : ty;
+  tz = tz > 255 ? 255 : tz;
+  EASYCAT.BufferIn.Cust.fx_s2m = (int8_t) fx;
+  EASYCAT.BufferIn.Cust.fy_s2m = (int8_t) fy;
+  EASYCAT.BufferIn.Cust.fz_s2m = (int8_t) fz;
+  EASYCAT.BufferIn.Cust.tx_s2m = (int8_t) tx;
+  EASYCAT.BufferIn.Cust.ty_s2m = (int8_t) ty;
+  EASYCAT.BufferIn.Cust.tz_s2m = (int8_t) tz;
 }
