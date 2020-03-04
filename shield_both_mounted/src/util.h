@@ -1,9 +1,10 @@
+using ll = long long;
 long integerPow(long, int);
 
 /*
-   convert the string of hexadecimal representation of data to binary
+   convert the String of hexadecimal representation of data to binary
    @ param data : raw data of sensor
-   @ return : string which represents the sensor data in binary
+   @ return : String which represents the sensor data in binary
 */
 String hexToBin(String data) {
   String resultStr = "";
@@ -28,9 +29,9 @@ String hexToBin(String data) {
   return resultStr;
 }
 
-/* the function that converts string representation of binary
+/* the function that converts String representation of binary
     to decimal number in long integer (2's complement)
-    @param : string data of binary
+    @param : String data of binary
     @return : long integer in 2's complement
 */
 long binToDec(String data) {
@@ -55,13 +56,31 @@ long binToDec(String data) {
 }
 
 /*
-   Since pow() function has a round-off error,
-   please use this function for integer pow
-   @param a : long integer to be powered
-   @param exponent : power
-   @return : a^(exponent)
+  RepeatingSquare method.
+  Decrease the calculation time to O(logN)
+  Since std::pow() function has a round-off error,
+  please use this function for integer pow
+  @param a : long integer to be powered
+  @param exponent : power
+  @return : a^(exponent)
 */
 long integerPow(long a, int exponent) {
+  if (exponent == 0) return 1;
+  if (exponent % 2 == 0) {
+    long t = integerPow(a, exponent/2);
+    return t * t;
+  }
+  return a * integerPow(a, exponent-1);
+}
+
+/*
+Since std::pow() function has a round-off error,
+please use this function for integer pow
+@param a : long integer to be powered
+@param exponent : power
+@return : a^(exponent)
+*/
+long _integerPow(long a, int exponent) {
   long result = 1;
   for (int i = 0; i < exponent; i++) {
     result *= a;

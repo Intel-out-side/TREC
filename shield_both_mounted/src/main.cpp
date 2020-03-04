@@ -5,10 +5,8 @@
 */
 
 /* ToDo
-   1. connect to the ethernet to transfer the data...?
-      (probably need more specs about it)
-   2. need to accept the data from two boards
-   3. verify the calibration of sensors.
+  1. SOEM needs to be float compatible since it only handles 8bit integers now
+  2. Recursive implementation of integerPow since it now takes O(N)
 */
 #include <Arduino.h>
 #include <SPI.h>
@@ -29,7 +27,7 @@ const double FORCE_FACTOR = 35402.0; // devide raw force data by this factor
 const double TORQUE_FACTOR = 611.0; // devide raw torque data by this factor
 unsigned long time;
 
-MCP_CAN CAN(SPI_CS_PIN); // Set CS pin
+MCP_CAN CAN(SPI_CS_PIN); // Set CS pin for CAN-bus communication to D9
 
 unsigned char len = 0;  // data length coming through CAN-bus communication
 unsigned char buf[8]; // data buffer for CAN-bus
@@ -105,6 +103,7 @@ void setup() {
 
   ContaUp.Word = 0x0000;
   ContaDown.Word = 0x0000;
+
   while (EASYCAT.Init() != true) Serial.println("Initializing..");
 
   if (EASYCAT.Init() == true) {
@@ -114,7 +113,7 @@ void setup() {
     Serial.println("EasyCAT initialization failed");
   }
 
-  MsTimer2::set(20, mainFunction);
+  MsTimer2::set(20, mainFunction); // execute mainFunction every 20ms
   MsTimer2::start();
 }
 
@@ -124,6 +123,9 @@ void loop() {
 
 /*
   the main function to execute by a timer function
+  1. it sends a message request to NET F/T shield
+  2. it receives new data from NET F/T shield and store them into fx ~ tz
+  3. send them to EtherCAT master through easyCAT shield
 */
 void mainFunction() {
   unsigned char messageRequest[1] = {1};
@@ -231,15 +233,16 @@ void sendToMaster(double fx, double fy, double fz, double tx, double ty, double 
   int8_t ref_tz = EASYCAT.BufferOut.Cust.tz_m2s;
 
 
-  // EASYCAT.BufferIn.Cust struct contains the data FROM SLAVE TO MASTER
-  // store each force/torque values measured by sensor into struct member variables
-  // e.g.) fx_s2m represents "fx slave to master". This will be read by EasyCAT in every iteration
-  fx = fx > 255 ? 255 : fx;
+  fx = fx > 255 ? 255 : fx; // limit fx in the range -256 ~ 255 since SOEM only takes 8bit integers
   fy = fy > 255 ? 255 : fy;
   fz = fz > 255 ? 255 : fz;
   tx = tx > 255 ? 255 : tx;
   ty = ty > 255 ? 255 : ty;
   tz = tz > 255 ? 255 : tz;
+
+  // EASYCAT.BufferIn.Cust struct contains the data FROM SLAVE TO MASTER
+  // store each force/torque values measured by sensor into struct member variables
+  // e.g.) fx_s2m represents "fx slave to master". This will be read by EasyCAT in every iteration
   EASYCAT.BufferIn.Cust.fx_s2m = (int8_t) fx;
   EASYCAT.BufferIn.Cust.fy_s2m = (int8_t) fy;
   EASYCAT.BufferIn.Cust.fz_s2m = (int8_t) fz;
